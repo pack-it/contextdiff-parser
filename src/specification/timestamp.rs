@@ -3,6 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use chrono::{DateTime, FixedOffset};
 
 /// Represents a timestamp in a context diff file.
+#[derive(Debug)]
 pub struct Timestamp {
     value: DateTime<FixedOffset>,
 }

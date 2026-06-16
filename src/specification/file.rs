@@ -1,37 +1,54 @@
 use crate::specification::timestamp::Timestamp;
 
 /// Represents a context diff file, consisting of the separate diffs for each file.
+#[derive(Debug)]
 pub struct ContextDiffFile {
-    diffs: Vec<FileDiff>,
+    pub comment: String,
+    pub diffs: Vec<FileDiff>,
 }
 
 /// Represents all changes for one file in a context diff file.
+#[derive(Debug)]
 pub struct FileDiff {
-    from_file: String,
-    to_file: String,
-    from_modification_time: Timestamp,
-    to_modification_time: Timestamp,
-    diffs: Vec<LocalDiff>,
+    pub from_header: FileDiffHeader,
+    pub to_header: FileDiffHeader,
+    pub diffs: Vec<LocalDiff>,
+}
+
+/// Represents a header of a file diff.
+#[derive(Debug)]
+pub struct FileDiffHeader {
+    pub file_path: String,
+    pub modification_time: Timestamp,
 }
 
 /// Represents all changes to one local block in a file.
+#[derive(Debug)]
 pub struct LocalDiff {
-    from_file_line_numbers: String,
-    to_file_line_numbers: String,
-    from_file_lines: Vec<LineValue>,
-    to_file_lines: Vec<LineValue>,
+    pub from_file_hunk: Hunk,
+    pub from_file_lines: Vec<LineValue>,
+    pub to_file_hunk: Hunk,
+    pub to_file_lines: Vec<LineValue>,
+}
+
+/// Represents a hunk of a local diff.
+#[derive(Debug)]
+pub struct Hunk {
+    pub line_numbers: String,
 }
 
 /// Represents the value of one line in a local diff.
+#[derive(Debug)]
 pub struct LineValue {
-    line_value: String,
-    indicator: LineValueIndicator,
+    pub line_value: String,
+    pub indicator: LineValueIndicator,
 }
 
 /// Represents all possible indicators of a line in a local diff.
+#[derive(Debug)]
 pub enum LineValueIndicator {
-    /// No indicator, line is not changed.
-    Nothing,
+    /// ' ' indicator, line was not changed.
+    Unchanged,
 
     /// '!' indicator, line was changed.
     Changed,
