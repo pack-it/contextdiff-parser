@@ -1,0 +1,8 @@
+[package]
+name = "contextdiff-parser"
+description = "A simple Rust library to parse and translate context diff files."
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.85.0"
+
+[dependencies]
