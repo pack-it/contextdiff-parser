@@ -15,7 +15,7 @@ pub fn parse_from_str(input: &str) -> Option<ContextDiffFile> {
     let mut diffs = Vec::new();
     let mut comment = String::new();
 
-    let mut iterator: Peekable<_> = input.split('\n').peekable();
+    let mut iterator: Peekable<_> = input.lines().peekable();
     while let Some(line) = iterator.peek() {
         // If we have not yet parsed diffs and the line is not a from file header, store comment
         if diffs.is_empty() && !line.starts_with(FROM_FILE_PREFIX) {
@@ -97,13 +97,13 @@ fn parse_next_local_diff<'a>(iterator: &mut Peekable<impl Iterator<Item = &'a st
 /// Checks the prefix based on the `is_from` variable.
 fn parse_file_diff_header(line: &str, is_from: bool) -> Option<FileDiffHeader> {
     // Check if file PREFIXs with the correct prefix
-    let start = if is_from { FROM_FILE_PREFIX } else { TO_FILE_PREFIX };
-    if !line.starts_with(start) {
+    let prefix = if is_from { FROM_FILE_PREFIX } else { TO_FILE_PREFIX };
+    if !line.starts_with(prefix) {
         return None;
     }
 
     // Split path and timestamp from header
-    let value = &line[4..];
+    let value = line.strip_prefix(prefix).expect("Expected a line prefix here");
     let (path, timestamp) = value.split_once('\t')?;
 
     let modification_time = Timestamp::from_str(timestamp.trim()).unwrap();
@@ -118,19 +118,23 @@ fn parse_file_diff_header(line: &str, is_from: bool) -> Option<FileDiffHeader> {
 /// Checks the prefix and suffix based on the `is_from` variable.
 fn parse_hunk(line: &str, is_from: bool) -> Option<Hunk> {
     // Check if line PREFIXs with the expected characters
-    let start = if is_from { FROM_HUNK_PREFIX } else { TO_HUNK_PREFIX };
-    if !line.starts_with(start) {
+    let prefix = if is_from { FROM_HUNK_PREFIX } else { TO_HUNK_PREFIX };
+    if !line.starts_with(prefix) {
         return None;
     }
 
     // Check if line SUFFIXs with the expected characters
-    let end = if is_from { FROM_HUNK_SUFFIX } else { TO_HUNK_SUFFIX };
-    if !line.ends_with(end) {
+    let suffix = if is_from { FROM_HUNK_SUFFIX } else { TO_HUNK_SUFFIX };
+    if !line.ends_with(suffix) {
         return None;
     }
 
     // Extract line numbers from hunk
-    let value = &line[4..line.len() - 5];
+    let value = line
+        .strip_prefix(prefix)
+        .expect("Expected a line prefix here")
+        .strip_suffix(suffix)
+        .expect("Expected a line suffix here");
 
     Some(Hunk {
         line_numbers: value.into(),
@@ -139,8 +143,10 @@ fn parse_hunk(line: &str, is_from: bool) -> Option<Hunk> {
 
 /// Parses a line value from the given line.
 fn parse_line_value(line: &str) -> Option<LineValue> {
+    let mut chars = line.chars();
+
     // Match the indicator of the line
-    let indicator = match line.chars().nth(0)? {
+    let indicator = match chars.next()? {
         ' ' => LineValueIndicator::Unchanged,
         '!' => LineValueIndicator::Changed,
         '+' => LineValueIndicator::Inserted,
@@ -149,12 +155,12 @@ fn parse_line_value(line: &str) -> Option<LineValue> {
     };
 
     // Check if second character of line is a space as expected
-    if line.chars().nth(1)? != ' ' {
+    if chars.next()? != ' ' {
         return None;
     }
 
     // Extract line value from line
-    let line_value = &line[2..];
+    let line_value = chars.as_str();
 
     Some(LineValue {
         line_value: line_value.into(),
