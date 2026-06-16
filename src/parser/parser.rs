@@ -1,6 +1,12 @@
-use std::{iter::Peekable, str::FromStr};
+use std::str::FromStr;
 
-use crate::specification::{ContextDiffFile, FileDiff, FileDiffHeader, Hunk, LineValue, LineValueIndicator, LocalDiff, Timestamp};
+use crate::{
+    parser::{
+        error::{ParserError, ParserErrorKind, Result},
+        iterator::LineIterator,
+    },
+    specification::{ContextDiffFile, FileDiff, FileDiffHeader, Hunk, LineValue, LineValueIndicator, LocalDiff, Timestamp},
+};
 
 const FROM_FILE_PREFIX: &str = "*** ";
 const TO_FILE_PREFIX: &str = "--- ";
@@ -11,11 +17,11 @@ const TO_HUNK_PREFIX: &str = "--- ";
 const TO_HUNK_SUFFIX: &str = " ----";
 
 /// Parses a context diff file from a string.
-pub fn parse_from_str(input: &str) -> Option<ContextDiffFile> {
+pub fn parse_from_str(input: &str) -> Result<ContextDiffFile> {
     let mut diffs = Vec::new();
     let mut comment = String::new();
 
-    let mut iterator: Peekable<_> = input.lines().peekable();
+    let mut iterator = LineIterator::from_lines(input);
     while let Some(line) = iterator.peek() {
         // If we have not yet parsed diffs and the line is not a from file header, store comment
         if diffs.is_empty() && !line.starts_with(FROM_FILE_PREFIX) {
@@ -27,17 +33,16 @@ pub fn parse_from_str(input: &str) -> Option<ContextDiffFile> {
         diffs.push(parse_next_file_diff(&mut iterator)?);
     }
 
-    Some(ContextDiffFile { comment, diffs })
+    Ok(ContextDiffFile { comment, diffs })
 }
 
 /// Parses the next file diff from the given iterator.
-fn parse_next_file_diff<'a>(iterator: &mut Peekable<impl Iterator<Item = &'a str>>) -> Option<FileDiff> {
-    let from_header = iterator.next()?;
-    let to_header = iterator.next()?;
-
+fn parse_next_file_diff(iterator: &mut LineIterator) -> Result<FileDiff> {
     // Parse file headers
-    let from_header = parse_file_diff_header(from_header, true)?;
-    let to_header = parse_file_diff_header(to_header, false)?;
+    let from_header = iterator.next().ok_or(ParserError::unexpected_eof(iterator.index() as u64))?;
+    let from_header = parse_file_diff_header(from_header, iterator.index() as u64, true)?;
+    let to_header = iterator.next().ok_or(ParserError::unexpected_eof(iterator.index() as u64))?;
+    let to_header = parse_file_diff_header(to_header, iterator.index() as u64, false)?;
 
     // Parse local diffs of the file until a new file is found
     let mut diffs = Vec::new();
@@ -47,7 +52,7 @@ fn parse_next_file_diff<'a>(iterator: &mut Peekable<impl Iterator<Item = &'a str
         diffs.push(parse_next_local_diff(iterator)?);
     }
 
-    Some(FileDiff {
+    Ok(FileDiff {
         from_header,
         to_header,
         diffs,
@@ -55,26 +60,32 @@ fn parse_next_file_diff<'a>(iterator: &mut Peekable<impl Iterator<Item = &'a str
 }
 
 /// Parses the next local diff from the given iterator
-fn parse_next_local_diff<'a>(iterator: &mut Peekable<impl Iterator<Item = &'a str>>) -> Option<LocalDiff> {
+fn parse_next_local_diff(iterator: &mut LineIterator) -> Result<LocalDiff> {
     // Check if next line is the expected separator
-    if iterator.next()?.trim() != HUNK_SEPARATOR {
-        return None;
+    let separator_line = iterator.next().ok_or(ParserError::unexpected_eof(iterator.index() as u64))?;
+    if separator_line.trim() != HUNK_SEPARATOR {
+        return Err(ParserError::new(
+            iterator.index() as u64,
+            0,
+            ParserErrorKind::ExpectedFileHeaderPrefix,
+        ));
     }
 
     // Parse from hunk
-    let from_file_hunk = iterator.next()?;
-    let from_file_hunk = parse_hunk(from_file_hunk, true)?;
+    let from_file_hunk = iterator.next().ok_or(ParserError::unexpected_eof(iterator.index() as u64))?;
+    let from_file_hunk = parse_hunk(from_file_hunk, iterator.index() as u64, true)?;
 
     // Parse lines of from file until the to hunk is found
     let mut from_file_lines = Vec::new();
-    while !iterator.peek()?.starts_with(TO_HUNK_PREFIX) {
+    let line = iterator.index() as u64;
+    while !iterator.peek().ok_or(ParserError::unexpected_eof(line))?.starts_with(TO_HUNK_PREFIX) {
         let line = iterator.next().expect("Expected a line here");
-        from_file_lines.push(parse_line_value(line)?);
+        from_file_lines.push(parse_line_value(line, iterator.index() as u64)?);
     }
 
     // Parse to hunk
-    let to_file_hunk = iterator.next()?;
-    let to_file_hunk = parse_hunk(to_file_hunk, false)?;
+    let to_file_hunk = iterator.next().ok_or(ParserError::unexpected_eof(iterator.index() as u64))?;
+    let to_file_hunk = parse_hunk(to_file_hunk, iterator.index() as u64, false)?;
 
     // Parse lines of to hunk until a new file or hunk separator is found
     let mut to_file_lines = Vec::new();
@@ -82,10 +93,10 @@ fn parse_next_local_diff<'a>(iterator: &mut Peekable<impl Iterator<Item = &'a st
         && !(next_line.starts_with(FROM_FILE_PREFIX) || next_line.trim() == HUNK_SEPARATOR)
     {
         let line = iterator.next().expect("Expected a line here");
-        to_file_lines.push(parse_line_value(line)?);
+        to_file_lines.push(parse_line_value(line, iterator.index() as u64)?);
     }
 
-    Some(LocalDiff {
+    Ok(LocalDiff {
         from_file_hunk,
         to_file_hunk,
         from_file_lines,
@@ -95,20 +106,22 @@ fn parse_next_local_diff<'a>(iterator: &mut Peekable<impl Iterator<Item = &'a st
 
 /// Parses a file diff header from the given line.
 /// Checks the prefix based on the `is_from` variable.
-fn parse_file_diff_header(line: &str, is_from: bool) -> Option<FileDiffHeader> {
+fn parse_file_diff_header(line: &str, line_num: u64, is_from: bool) -> Result<FileDiffHeader> {
     // Check if file PREFIXs with the correct prefix
     let prefix = if is_from { FROM_FILE_PREFIX } else { TO_FILE_PREFIX };
     if !line.starts_with(prefix) {
-        return None;
+        return Err(ParserError::new(line_num, 0, ParserErrorKind::ExpectedFileHeaderPrefix));
     }
 
     // Split path and timestamp from header
     let value = line.strip_prefix(prefix).expect("Expected a line prefix here");
-    let (path, timestamp) = value.split_once('\t')?;
+    let tab_index = value.find('\t').ok_or(ParserError::new(line_num, 0, ParserErrorKind::ExpectedTabInFileHeaderPrefix))?;
+    let (path, timestamp) = value.split_at(tab_index);
 
-    let modification_time = Timestamp::from_str(timestamp.trim()).unwrap();
+    let modification_time = Timestamp::from_str(timestamp.trim())
+        .map_err(|e| ParserError::new(line_num, tab_index as u64 + prefix.len() as u64 + 1, e.into()))?;
 
-    Some(FileDiffHeader {
+    Ok(FileDiffHeader {
         file_path: path.into(),
         modification_time,
     })
@@ -116,17 +129,18 @@ fn parse_file_diff_header(line: &str, is_from: bool) -> Option<FileDiffHeader> {
 
 /// Parses a hunk from the given line.
 /// Checks the prefix and suffix based on the `is_from` variable.
-fn parse_hunk(line: &str, is_from: bool) -> Option<Hunk> {
+fn parse_hunk(line: &str, line_num: u64, is_from: bool) -> Result<Hunk> {
     // Check if line PREFIXs with the expected characters
     let prefix = if is_from { FROM_HUNK_PREFIX } else { TO_HUNK_PREFIX };
     if !line.starts_with(prefix) {
-        return None;
+        return Err(ParserError::new(line_num, 0, ParserErrorKind::ExpectedHunkPrefix));
     }
 
     // Check if line SUFFIXs with the expected characters
     let suffix = if is_from { FROM_HUNK_SUFFIX } else { TO_HUNK_SUFFIX };
     if !line.ends_with(suffix) {
-        return None;
+        let column = (line.len() - suffix.len()) as u64;
+        return Err(ParserError::new(line_num, column, ParserErrorKind::ExpectedHunkSuffix));
     }
 
     // Extract line numbers from hunk
@@ -136,33 +150,35 @@ fn parse_hunk(line: &str, is_from: bool) -> Option<Hunk> {
         .strip_suffix(suffix)
         .expect("Expected a line suffix here");
 
-    Some(Hunk {
+    Ok(Hunk {
         line_numbers: value.into(),
     })
 }
 
 /// Parses a line value from the given line.
-fn parse_line_value(line: &str) -> Option<LineValue> {
+fn parse_line_value(line: &str, line_num: u64) -> Result<LineValue> {
     let mut chars = line.chars();
 
     // Match the indicator of the line
-    let indicator = match chars.next()? {
+    let indicator_char = chars.next().ok_or(ParserError::new(line_num, 0, ParserErrorKind::UnexpectedEOL))?;
+    let indicator = match indicator_char {
         ' ' => LineValueIndicator::Unchanged,
         '!' => LineValueIndicator::Changed,
         '+' => LineValueIndicator::Inserted,
         '-' => LineValueIndicator::Deleted,
-        _ => return None,
+        indicator_char => return Err(ParserError::new(line_num, 0, ParserErrorKind::InvalidLineIndicator(indicator_char))),
     };
 
     // Check if second character of line is a space as expected
-    if chars.next()? != ' ' {
-        return None;
+    let second_char = chars.next().ok_or(ParserError::new(line_num, 1, ParserErrorKind::UnexpectedEOL))?;
+    if second_char != ' ' {
+        return Err(ParserError::new(line_num, 1, ParserErrorKind::ExpectedSpaceAfterIndicator));
     }
 
     // Extract line value from line
     let line_value = chars.as_str();
 
-    Some(LineValue {
+    Ok(LineValue {
         line_value: line_value.into(),
         indicator,
     })
