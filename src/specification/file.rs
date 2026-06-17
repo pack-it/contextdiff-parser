@@ -25,16 +25,17 @@ pub struct FileDiffHeader {
 /// Represents all changes to one local block in a file.
 #[derive(Debug)]
 pub struct LocalDiff {
-    pub from_file_hunk: Hunk,
+    pub from_file_hunk_header: HunkHeader,
     pub from_file_lines: Vec<LineValue>,
-    pub to_file_hunk: Hunk,
+    pub to_file_hunk_header: HunkHeader,
     pub to_file_lines: Vec<LineValue>,
 }
 
-/// Represents a hunk of a local diff.
+/// Represents a header of a hunk of a local diff.
 #[derive(Debug)]
-pub struct Hunk {
-    pub line_numbers: String,
+pub struct HunkHeader {
+    pub start_line: Option<u64>,
+    pub end_line: u64,
 }
 
 /// Represents the value of one line in a local diff.

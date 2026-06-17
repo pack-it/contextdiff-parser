@@ -35,6 +35,9 @@ pub enum ParserErrorKind {
     #[error("Expected hunk suffix")]
     ExpectedHunkSuffix,
 
+    #[error("Invalid line number in hunk header '{0}'")]
+    InvalidHunkLineNumber(std::num::ParseIntError),
+
     #[error("Invalid line indicator '{0}'")]
     InvalidLineIndicator(char),
 

@@ -5,16 +5,16 @@ use crate::{
         error::{ParserError, ParserErrorKind, Result},
         iterator::LineIterator,
     },
-    specification::{ContextDiffFile, FileDiff, FileDiffHeader, Hunk, LineValue, LineValueIndicator, LocalDiff, Timestamp},
+    specification::{ContextDiffFile, FileDiff, FileDiffHeader, HunkHeader, LineValue, LineValueIndicator, LocalDiff, Timestamp},
 };
 
 const FROM_FILE_PREFIX: &str = "*** ";
 const TO_FILE_PREFIX: &str = "--- ";
 const HUNK_SEPARATOR: &str = "***************";
-const FROM_HUNK_PREFIX: &str = "*** ";
-const FROM_HUNK_SUFFIX: &str = " ****";
-const TO_HUNK_PREFIX: &str = "--- ";
-const TO_HUNK_SUFFIX: &str = " ----";
+const FROM_HUNK_HEADER_PREFIX: &str = "*** ";
+const FROM_HUNK_HEADER_SUFFIX: &str = " ****";
+const TO_HUNK_HEADER_PREFIX: &str = "--- ";
+const TO_HUNK_HEADER_SUFFIX: &str = " ----";
 
 /// Parses a context diff file from a string.
 pub fn parse_from_str(input: &str) -> Result<ContextDiffFile> {
@@ -72,20 +72,20 @@ fn parse_next_local_diff(iterator: &mut LineIterator) -> Result<LocalDiff> {
     }
 
     // Parse from hunk
-    let from_file_hunk = iterator.next().ok_or(ParserError::unexpected_eof(iterator.index() as u64))?;
-    let from_file_hunk = parse_hunk(from_file_hunk, iterator.index() as u64, true)?;
+    let from_file_hunk_header = iterator.next().ok_or(ParserError::unexpected_eof(iterator.index() as u64))?;
+    let from_file_hunk_header = parse_hunk_header(from_file_hunk_header, iterator.index() as u64, true)?;
 
     // Parse lines of from file until the to hunk is found
     let mut from_file_lines = Vec::new();
     let line = iterator.index() as u64;
-    while !iterator.peek().ok_or(ParserError::unexpected_eof(line))?.starts_with(TO_HUNK_PREFIX) {
+    while !iterator.peek().ok_or(ParserError::unexpected_eof(line))?.starts_with(TO_HUNK_HEADER_PREFIX) {
         let line = iterator.next().expect("Expected a line here");
         from_file_lines.push(parse_line_value(line, iterator.index() as u64)?);
     }
 
     // Parse to hunk
-    let to_file_hunk = iterator.next().ok_or(ParserError::unexpected_eof(iterator.index() as u64))?;
-    let to_file_hunk = parse_hunk(to_file_hunk, iterator.index() as u64, false)?;
+    let to_file_hunk_header = iterator.next().ok_or(ParserError::unexpected_eof(iterator.index() as u64))?;
+    let to_file_hunk_header = parse_hunk_header(to_file_hunk_header, iterator.index() as u64, false)?;
 
     // Parse lines of to hunk until a new file or hunk separator is found
     let mut to_file_lines = Vec::new();
@@ -97,8 +97,8 @@ fn parse_next_local_diff(iterator: &mut LineIterator) -> Result<LocalDiff> {
     }
 
     Ok(LocalDiff {
-        from_file_hunk,
-        to_file_hunk,
+        from_file_hunk_header,
+        to_file_hunk_header,
         from_file_lines,
         to_file_lines,
     })
@@ -127,32 +127,55 @@ fn parse_file_diff_header(line: &str, line_num: u64, is_from: bool) -> Result<Fi
     })
 }
 
-/// Parses a hunk from the given line.
+/// Parses a hunk header from the given line.
 /// Checks the prefix and suffix based on the `is_from` variable.
-fn parse_hunk(line: &str, line_num: u64, is_from: bool) -> Result<Hunk> {
+fn parse_hunk_header(line: &str, line_num: u64, is_from: bool) -> Result<HunkHeader> {
     // Check if line PREFIXs with the expected characters
-    let prefix = if is_from { FROM_HUNK_PREFIX } else { TO_HUNK_PREFIX };
+    let prefix = if is_from { FROM_HUNK_HEADER_PREFIX } else { TO_HUNK_HEADER_PREFIX };
     if !line.starts_with(prefix) {
         return Err(ParserError::new(line_num, 0, ParserErrorKind::ExpectedHunkPrefix));
     }
 
     // Check if line SUFFIXs with the expected characters
-    let suffix = if is_from { FROM_HUNK_SUFFIX } else { TO_HUNK_SUFFIX };
+    let suffix = if is_from { FROM_HUNK_HEADER_SUFFIX } else { TO_HUNK_HEADER_SUFFIX };
     if !line.ends_with(suffix) {
         let column = (line.len() - suffix.len()) as u64;
         return Err(ParserError::new(line_num, column, ParserErrorKind::ExpectedHunkSuffix));
     }
 
-    // Extract line numbers from hunk
+    // Extract line number value from hunk header
     let value = line
         .strip_prefix(prefix)
         .expect("Expected a line prefix here")
         .strip_suffix(suffix)
         .expect("Expected a line suffix here");
 
-    Ok(Hunk {
-        line_numbers: value.into(),
-    })
+    // Extract line numbers from hunk
+    let (start_line, end_line) = match value.contains(',') {
+        true => {
+            let (start, end) = value.split_once(',').expect("Expected a comma at the line");
+            (Some(start), end)
+        },
+        false => (None, value),
+    };
+
+    let start_line_len = start_line.map_or(0, |x| x.len() + 1) as u64;
+    let start_line = match start_line {
+        Some(line) => {
+            Some(line.parse().map_err(|e| ParserError::new(line_num, prefix.len() as u64, ParserErrorKind::InvalidHunkLineNumber(e)))?)
+        },
+        None => None,
+    };
+
+    let end_line = end_line.parse().map_err(|e| {
+        ParserError::new(
+            line_num,
+            prefix.len() as u64 + start_line_len,
+            ParserErrorKind::InvalidHunkLineNumber(e),
+        )
+    })?;
+
+    Ok(HunkHeader { start_line, end_line })
 }
 
 /// Parses a line value from the given line.
