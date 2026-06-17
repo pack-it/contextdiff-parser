@@ -10,3 +10,4 @@ pub use self::file::LineValueIndicator;
 pub use self::file::LocalDiff;
 
 pub use timestamp::Timestamp;
+pub use timestamp::TimestampParseError;

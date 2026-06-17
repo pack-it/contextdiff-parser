@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::specification::TimestampParseError;
+
 /// An error during parsing, at the given line and column.
 #[derive(Error, Debug)]
 #[error("{kind} at line {line} column {column}")]
@@ -40,7 +42,7 @@ pub enum ParserErrorKind {
     ExpectedSpaceAfterIndicator,
 
     #[error("Unable to parse timestamp: '{0}'")]
-    TimestampParseError(chrono::ParseError),
+    TimestampParseError(#[from] TimestampParseError),
 }
 
 pub type Result<T> = core::result::Result<T, ParserError>;
@@ -58,11 +60,5 @@ impl ParserError {
             line,
             column: 0,
         }
-    }
-}
-
-impl From<chrono::ParseError> for ParserErrorKind {
-    fn from(value: chrono::ParseError) -> Self {
-        Self::TimestampParseError(value)
     }
 }
