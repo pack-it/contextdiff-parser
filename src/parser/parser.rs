@@ -25,8 +25,10 @@ pub fn parse_from_str(input: &str) -> Result<ContextDiffFile> {
     while let Some(line) = iterator.peek() {
         // If we have not yet parsed diffs and the line is not a from file header, store comment
         if diffs.is_empty() && !line.starts_with(FROM_FILE_PREFIX) {
+            if !comment.is_empty() {
+                comment.push('\n');
+            }
             comment.push_str(iterator.next().expect("Expected a line here"));
-            comment.push('\n');
             continue;
         }
 
