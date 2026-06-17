@@ -16,7 +16,7 @@ pub struct FileDiff {
 }
 
 /// Represents a header of a file diff.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct FileDiffHeader {
     pub file_path: String,
     pub modification_time: Timestamp,
@@ -32,21 +32,21 @@ pub struct LocalDiff {
 }
 
 /// Represents a header of a hunk of a local diff.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct HunkHeader {
     pub start_line: Option<u64>,
     pub end_line: u64,
 }
 
 /// Represents the value of one line in a local diff.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct LineValue {
     pub line_value: String,
     pub indicator: LineValueIndicator,
 }
 
 /// Represents all possible indicators of a line in a local diff.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum LineValueIndicator {
     /// ' ' indicator, line was not changed.
     Unchanged,

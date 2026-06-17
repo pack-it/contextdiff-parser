@@ -118,6 +118,15 @@ fn parse_file_diff_header(line: &str, line_num: u64, is_from: bool) -> Result<Fi
     let tab_index = value.find('\t').ok_or(ParserError::new(line_num, 0, ParserErrorKind::ExpectedTabInFileHeaderPrefix))?;
     let (path, timestamp) = value.split_at(tab_index);
 
+    // Check if path is not empty
+    if path.trim().is_empty() {
+        return Err(ParserError::new(
+            line_num,
+            prefix.len() as u64,
+            ParserErrorKind::EmptyFileNameInHeader,
+        ));
+    }
+
     let modification_time = Timestamp::from_str(timestamp.trim())
         .map_err(|e| ParserError::new(line_num, tab_index as u64 + prefix.len() as u64 + 1, e.into()))?;
 
@@ -205,4 +214,235 @@ fn parse_line_value(line: &str, line_num: u64) -> Result<LineValue> {
         line_value: line_value.into(),
         indicator,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! assert_error {
+        ($value:expr, $expected_error_kind:pat, line: $expected_line:pat, col: $expected_column:pat) => {
+            assert!(matches!(
+                $value,
+                Err(ParserError {
+                    kind: $expected_error_kind,
+                    line: $expected_line,
+                    column: $expected_column,
+                })
+            ));
+        };
+    }
+
+    fn assert_parse_file_diff_header(line: &str, is_from: bool, expected_file_path: &str, expected_timestamp: Timestamp) {
+        match parse_file_diff_header(line, 0, is_from) {
+            Ok(value) => assert_eq!(
+                value,
+                FileDiffHeader {
+                    file_path: expected_file_path.into(),
+                    modification_time: expected_timestamp,
+                },
+            ),
+            Err(e) => {
+                panic!(
+                    "Expected Ok(FileDiffHeader {{ file_path: {expected_file_path:?}, modification_time: {expected_timestamp:?} }}), got Err({e:?})"
+                )
+            },
+        };
+    }
+
+    #[test]
+    fn test_file_diff_header() {
+        let test_timestamp = Timestamp::from_str("2002-02-21 23:30:39.000000000 -0000").expect("Expected valid timestamp");
+
+        // Test valid parsing of simple headers
+        assert_parse_file_diff_header(
+            "*** some/path	2002-02-21 23:30:39.000000000 -0000",
+            true,
+            "some/path",
+            test_timestamp.clone(),
+        );
+        assert_parse_file_diff_header(
+            "--- some/path	2002-02-21 23:30:39.000000000 -0000",
+            false,
+            "some/path",
+            test_timestamp.clone(),
+        );
+
+        // Test valid parsing of paths with spaces in header
+        assert_parse_file_diff_header(
+            "*** some/path with spaces	2002-02-21 23:30:39.000000000 -0000",
+            true,
+            "some/path with spaces",
+            test_timestamp.clone(),
+        );
+        assert_parse_file_diff_header(
+            "--- some/path with spaces	2002-02-21 23:30:39.000000000 -0000",
+            false,
+            "some/path with spaces",
+            test_timestamp.clone(),
+        );
+
+        // Test valid parsing of POSIX timestamp format in header
+        assert_parse_file_diff_header("*** some/path	Thu Feb 21 23:30:39 2002", true, "some/path", test_timestamp.clone());
+        assert_parse_file_diff_header("--- some/path	Thu Feb 21 23:30:39 2002", false, "some/path", test_timestamp);
+
+        // Test invalid header prefix
+        let value = parse_file_diff_header("some/path	Thu Feb 21 23:30:39 2002", 0, true);
+        assert_error!(value, ParserErrorKind::ExpectedFileHeaderPrefix, line: 0, col: 0);
+        let value = parse_file_diff_header("*** some/path	Thu Feb 21 23:30:39 2002", 0, false);
+        assert_error!(value, ParserErrorKind::ExpectedFileHeaderPrefix, line: 0, col: 0);
+        let value = parse_file_diff_header("--- some/path	Thu Feb 21 23:30:39 2002", 0, true);
+        assert_error!(value, ParserErrorKind::ExpectedFileHeaderPrefix, line: 0, col: 0);
+
+        // Test no tab in header
+        let value = parse_file_diff_header("*** some/path Thu Feb 21 23:30:39 2002", 0, true);
+        assert_error!(value, ParserErrorKind::ExpectedTabInFileHeaderPrefix, line: 0, col: 0);
+
+        // Test empty filename
+        let value = parse_file_diff_header("*** 	Thu Feb 21 23:30:39 2002", 0, true);
+        assert_error!(value, ParserErrorKind::EmptyFileNameInHeader, line: 0, col: 4);
+
+        // Test invalid timestamp
+        assert!(matches!(
+            parse_file_diff_header("*** some/path	timestamp", 0, true),
+            Err(ParserError {
+                kind: ParserErrorKind::TimestampParseError(_),
+                line: 0,
+                column: 14,
+            })
+        ));
+
+        // Test timestamp with arbitrary text after
+        assert!(matches!(
+            parse_file_diff_header("*** some/path	Thu Feb 21 23:30:39 2002 text", 0, true),
+            Err(ParserError {
+                kind: ParserErrorKind::TimestampParseError(_),
+                line: 0,
+                column: 14,
+            })
+        ));
+    }
+
+    fn assert_parse_hunk_header(line: &str, is_from: bool, expected_start_line: Option<u64>, expected_end_line: u64) {
+        match parse_hunk_header(line, 0, is_from) {
+            Ok(value) => assert_eq!(
+                value,
+                HunkHeader {
+                    start_line: expected_start_line,
+                    end_line: expected_end_line,
+                },
+            ),
+            Err(e) => {
+                panic!("Expected Ok(HunkHeader {{ start_line: {expected_start_line:?}, end_line: {expected_end_line:?} }}), got Err({e:?})")
+            },
+        };
+    }
+
+    #[test]
+    fn test_hunk_header() {
+        // Test valid parsing of simple headers
+        assert_parse_hunk_header("*** 10,15 ****", true, Some(10), 15);
+        assert_parse_hunk_header("--- 10,15 ----", false, Some(10), 15);
+        assert_parse_hunk_header("*** 10 ****", true, None, 10);
+        assert_parse_hunk_header("--- 10 ----", false, None, 10);
+
+        // Test invalid header prefix
+        let value = parse_hunk_header("*** 10,15 ****", 0, false);
+        assert_error!(value, ParserErrorKind::ExpectedHunkPrefix, line: 0, col: 0);
+        let value = parse_hunk_header("--- 10,15 ****", 0, false);
+        assert_error!(value, ParserErrorKind::ExpectedHunkSuffix, line: 0, col: 9);
+
+        let value = parse_hunk_header("--- 10,15 ----", 0, true);
+        assert_error!(value, ParserErrorKind::ExpectedHunkPrefix, line: 0, col: 0);
+        let value = parse_hunk_header("*** 10,15 ----", 0, true);
+        assert_error!(value, ParserErrorKind::ExpectedHunkSuffix, line: 0, col: 9);
+
+        // Test invalid hunk line number
+        assert!(matches!(
+            parse_hunk_header("*** a,15 ****", 0, true),
+            Err(ParserError {
+                kind: ParserErrorKind::InvalidHunkLineNumber(_),
+                line: 0,
+                column: 4,
+            })
+        ));
+        assert!(matches!(
+            parse_hunk_header("*** 10,a ****", 0, true),
+            Err(ParserError {
+                kind: ParserErrorKind::InvalidHunkLineNumber(_),
+                line: 0,
+                column: 7,
+            })
+        ));
+
+        // Test empty hunk line number
+        assert!(matches!(
+            parse_hunk_header("*** ,15 ****", 0, true),
+            Err(ParserError {
+                kind: ParserErrorKind::InvalidHunkLineNumber(_),
+                line: 0,
+                column: 4,
+            })
+        ));
+        assert!(matches!(
+            parse_hunk_header("*** 10, ****", 0, true),
+            Err(ParserError {
+                kind: ParserErrorKind::InvalidHunkLineNumber(_),
+                line: 0,
+                column: 7,
+            })
+        ));
+        assert!(matches!(
+            parse_hunk_header("*** , ****", 0, true),
+            Err(ParserError {
+                kind: ParserErrorKind::InvalidHunkLineNumber(_),
+                line: 0,
+                column: 4,
+            })
+        ));
+    }
+
+    fn assert_parse_line_value(line: &str, expected_line_value: &str, expected_line_indicator: LineValueIndicator) {
+        match parse_line_value(line, 0) {
+            Ok(value) => assert_eq!(
+                value,
+                LineValue {
+                    line_value: expected_line_value.into(),
+                    indicator: expected_line_indicator,
+                },
+            ),
+            Err(e) => {
+                panic!(
+                    "Expected Ok(LineValue {{ line_value: {expected_line_value:?}, indicator: {expected_line_indicator:?} }}), got Err({e:?})"
+                )
+            },
+        };
+    }
+
+    #[test]
+    fn test_line_value() {
+        // Test valid parsing of simple lines
+        assert_parse_line_value("  if (result == 0)", "if (result == 0)", LineValueIndicator::Unchanged);
+        assert_parse_line_value("! if (result == 0)", "if (result == 0)", LineValueIndicator::Changed);
+        assert_parse_line_value("+ if (result == 0)", "if (result == 0)", LineValueIndicator::Inserted);
+        assert_parse_line_value("- if (result == 0)", "if (result == 0)", LineValueIndicator::Deleted);
+
+        // Test valid parsing of empty lines
+        assert_parse_line_value("  ", "", LineValueIndicator::Unchanged);
+        assert_parse_line_value("! ", "", LineValueIndicator::Changed);
+        assert_parse_line_value("+ ", "", LineValueIndicator::Inserted);
+        assert_parse_line_value("- ", "", LineValueIndicator::Deleted);
+
+        // Test invalid indicator
+        let value = parse_line_value("% if (result == 0)", 0);
+        assert_error!(value, ParserErrorKind::InvalidLineIndicator('%'), line: 0, col: 0);
+
+        // Test no space after indicator
+        let value = parse_line_value("!if (result == 0)", 0);
+        assert_error!(value, ParserErrorKind::ExpectedSpaceAfterIndicator, line: 0, col: 1);
+
+        // Test not enough characters
+        assert_error!(parse_line_value("", 0), ParserErrorKind::UnexpectedEOL, line: 0, col: 0);
+        assert_error!(parse_line_value("!", 0), ParserErrorKind::UnexpectedEOL, line: 0, col: 1);
+    }
 }

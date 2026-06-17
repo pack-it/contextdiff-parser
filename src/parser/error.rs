@@ -6,9 +6,9 @@ use crate::specification::TimestampParseError;
 #[derive(Error, Debug)]
 #[error("{kind} at line {line} column {column}")]
 pub struct ParserError {
-    kind: ParserErrorKind,
-    line: u64,
-    column: u64,
+    pub kind: ParserErrorKind,
+    pub line: u64,
+    pub column: u64,
 }
 
 /// The errors that could occur during parsing.
@@ -25,6 +25,9 @@ pub enum ParserErrorKind {
 
     #[error("Expected tab character to separate path and timestmap in file header")]
     ExpectedTabInFileHeaderPrefix,
+
+    #[error("Expected a non empty file name in file header")]
+    EmptyFileNameInHeader,
 
     #[error("Expected hunk separator")]
     ExpectedHunkSeparator,
