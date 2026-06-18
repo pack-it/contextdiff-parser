@@ -39,14 +39,14 @@ pub struct HunkHeader {
 }
 
 /// Represents the value of one line in a local diff.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LineValue {
     pub line_value: String,
     pub indicator: LineValueIndicator,
 }
 
 /// Represents all possible indicators of a line in a local diff.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum LineValueIndicator {
     /// ' ' indicator, line was not changed.
     Unchanged,

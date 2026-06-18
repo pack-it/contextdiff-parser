@@ -1,5 +1,6 @@
 mod error;
-pub(super) mod iterator;
+mod iterator;
+pub mod segmenter;
 
 #[allow(clippy::module_inception)]
 mod parser;

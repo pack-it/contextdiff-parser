@@ -36,7 +36,7 @@ impl FromStr for Timestamp {
 
         // Check if the first character is a-z, which would indicate a POSIX timestamp
         if s.chars().next().expect("Expected a first character").is_ascii_alphabetic() {
-            let naive = NaiveDateTime::parse_from_str(s, "%a %b %e %H:%M:%S %Y").map_err(|e| TimestampParseError::ChronoParseError(e))?;
+            let naive = NaiveDateTime::parse_from_str(s, "%a %b %e %H:%M:%S %Y").map_err(TimestampParseError::ChronoParseError)?;
             return Ok(Self {
                 value: FixedOffset::east_opt(0).expect("Expected 0 to be a valid offset").from_utc_datetime(&naive),
             });
@@ -44,7 +44,7 @@ impl FromStr for Timestamp {
 
         // Assume GNU timestamp
         Ok(Self {
-            value: DateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f %z").map_err(|e| TimestampParseError::ChronoParseError(e))?,
+            value: DateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f %z").map_err(TimestampParseError::ChronoParseError)?,
         })
     }
 }
