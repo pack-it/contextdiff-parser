@@ -41,6 +41,15 @@ pub enum ParserErrorKind {
     #[error("Invalid line number in hunk header '{0}'")]
     InvalidHunkLineNumber(std::num::ParseIntError),
 
+    #[error("The start line number of the hunk is higher than the end line number")]
+    HunkStartLineAfterEndLine,
+
+    #[error("Expected {expected} lines in the hunk, found {found} lines")]
+    HunkHeaderAndLinesMismatch {
+        expected: u64,
+        found: u64,
+    },
+
     #[error("Invalid line indicator '{0}'")]
     InvalidLineIndicator(char),
 

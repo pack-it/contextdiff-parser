@@ -65,7 +65,7 @@ fn parse_next_file_diff(iterator: &mut LineIterator) -> Result<FileDiff> {
 fn parse_next_local_diff(iterator: &mut LineIterator) -> Result<LocalDiff> {
     // Check if next line is the expected separator
     let separator_line = iterator.next().ok_or(ParserError::unexpected_eof(iterator.index() as u64))?;
-    if separator_line.trim() != HUNK_SEPARATOR {
+    if separator_line != HUNK_SEPARATOR {
         return Err(ParserError::new(
             iterator.index() as u64,
             0,
@@ -74,8 +74,9 @@ fn parse_next_local_diff(iterator: &mut LineIterator) -> Result<LocalDiff> {
     }
 
     // Parse from hunk
-    let from_file_hunk_header = iterator.next().ok_or(ParserError::unexpected_eof(iterator.index() as u64))?;
-    let from_file_hunk_header = parse_hunk_header(from_file_hunk_header, iterator.index() as u64, true)?;
+    let from_file_hunk_line = iterator.index() as u64 + 1;
+    let from_file_hunk_header = iterator.next().ok_or(ParserError::unexpected_eof(from_file_hunk_line))?;
+    let from_file_hunk_header = parse_hunk_header(from_file_hunk_header, from_file_hunk_line, true)?;
 
     // Parse lines of from file until the to hunk is found
     let mut from_file_lines = Vec::new();
@@ -86,16 +87,46 @@ fn parse_next_local_diff(iterator: &mut LineIterator) -> Result<LocalDiff> {
     }
 
     // Parse to hunk
-    let to_file_hunk_header = iterator.next().ok_or(ParserError::unexpected_eof(iterator.index() as u64))?;
-    let to_file_hunk_header = parse_hunk_header(to_file_hunk_header, iterator.index() as u64, false)?;
+    let to_file_hunk_line = iterator.index() as u64 + 1;
+    let to_file_hunk_header = iterator.next().ok_or(ParserError::unexpected_eof(to_file_hunk_line))?;
+    let to_file_hunk_header = parse_hunk_header(to_file_hunk_header, to_file_hunk_line, false)?;
 
     // Parse lines of to hunk until a new file or hunk separator is found
     let mut to_file_lines = Vec::new();
+    let mut only_insertions = true;
     while let Some(next_line) = iterator.peek()
-        && !(next_line.starts_with(FROM_FILE_PREFIX) || next_line.trim() == HUNK_SEPARATOR)
+        && !(next_line.starts_with(FROM_FILE_PREFIX) || *next_line == HUNK_SEPARATOR)
     {
         let line = iterator.next().expect("Expected a line here");
-        to_file_lines.push(parse_line_value(line, iterator.index() as u64)?);
+        let line_value = parse_line_value(line, iterator.index() as u64)?;
+        if !matches!(line_value.indicator, LineValueIndicator::Unchanged | LineValueIndicator::Inserted) {
+            only_insertions = false;
+        }
+        to_file_lines.push(line_value);
+    }
+
+    // Check if from hunk contains the expected number of lines
+    if from_file_lines.len() as u64 != from_file_hunk_header.expected_hunk_length() && !only_insertions {
+        return Err(ParserError::new(
+            from_file_hunk_line,
+            0,
+            ParserErrorKind::HunkHeaderAndLinesMismatch {
+                expected: from_file_hunk_header.expected_hunk_length(),
+                found: from_file_lines.len() as u64,
+            },
+        ));
+    }
+
+    // Check if to hunk contains the expected number of lines
+    if to_file_lines.len() as u64 != to_file_hunk_header.expected_hunk_length() {
+        return Err(ParserError::new(
+            to_file_hunk_line,
+            0,
+            ParserErrorKind::HunkHeaderAndLinesMismatch {
+                expected: to_file_hunk_header.expected_hunk_length(),
+                found: to_file_lines.len() as u64,
+            },
+        ));
     }
 
     Ok(LocalDiff {
@@ -133,7 +164,7 @@ fn parse_file_diff_header(line: &str, line_num: u64, is_from: bool) -> Result<Fi
         .map_err(|e| ParserError::new(line_num, tab_index as u64 + prefix.len() as u64 + 1, e.into()))?;
 
     Ok(FileDiffHeader {
-        file_path: path.into(),
+        file_path: path.trim().into(),
         modification_time,
     })
 }
@@ -185,6 +216,17 @@ fn parse_hunk_header(line: &str, line_num: u64, is_from: bool) -> Result<HunkHea
             ParserErrorKind::InvalidHunkLineNumber(e),
         )
     })?;
+
+    // Check if start line is before end line
+    if let Some(start_line) = start_line {
+        if start_line > end_line {
+            return Err(ParserError::new(
+                line_num,
+                prefix.len() as u64,
+                ParserErrorKind::HunkStartLineAfterEndLine,
+            ));
+        }
+    }
 
     Ok(HunkHeader { start_line, end_line })
 }
@@ -398,6 +440,16 @@ mod tests {
             parse_hunk_header("*** , ****", 0, true),
             Err(ParserError {
                 kind: ParserErrorKind::InvalidHunkLineNumber(_),
+                line: 0,
+                column: 4,
+            })
+        ));
+
+        // Test start line after end line
+        assert!(matches!(
+            parse_hunk_header("*** 15,10 ****", 0, true),
+            Err(ParserError {
+                kind: ParserErrorKind::HunkStartLineAfterEndLine,
                 line: 0,
                 column: 4,
             })

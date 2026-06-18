@@ -40,25 +40,33 @@ test comment
 + Okay okay, I'm sorry.
 + These jokes were very bad
 + Hopefully this example diff works
+*** other file	2026-06-19 04:02:26.103103072 +0200
+--- other/file	2026-06-19 08:29:42.921015162 +0200
+***************
+*** 1,2 ****
+--- 1,3 ----
+  This is some other file
+  With two lines
++ And even a third line!
 ";
 
     let parsed = parse_from_str(file);
     match parsed {
         Ok(parsed) => {
             assert_eq!(parsed.comment, "Some \nmultiline\ntest comment");
-            assert_eq!(parsed.diffs.len(), 1);
+            assert_eq!(parsed.diffs.len(), 2);
 
-            let diff = parsed.diffs.first().expect("Expected a FileDiff");
-            assert_eq!(diff.from_header.file_path, "file1");
+            let file1 = parsed.diffs.first().expect("Expected a FileDiff");
+            assert_eq!(file1.from_header.file_path, "file1");
             assert_eq!(
-                diff.from_header.modification_time.to_string(),
+                file1.from_header.modification_time.to_string(),
                 "2026-06-18 14:05:12.936105103 +0200"
             );
-            assert_eq!(diff.to_header.file_path, "file2");
-            assert_eq!(diff.to_header.modification_time.to_string(), "2026-06-18 23:36:10.102603136 +0200");
-            assert_eq!(diff.diffs.len(), 2);
+            assert_eq!(file1.to_header.file_path, "file2");
+            assert_eq!(file1.to_header.modification_time.to_string(), "2026-06-18 23:36:10.102603136 +0200");
+            assert_eq!(file1.diffs.len(), 2);
 
-            let diff1 = diff.diffs.first().expect("Expected a LocalDiff");
+            let diff1 = file1.diffs.first().expect("Expected a LocalDiff");
             assert_eq!(diff1.from_file_hunk_header.start_line, Some(1));
             assert_eq!(diff1.from_file_hunk_header.end_line, 7);
             assert_eq!(diff1.to_file_hunk_header.start_line, Some(1));
@@ -86,7 +94,7 @@ test comment
                 ]
             );
 
-            let diff2 = diff.diffs.get(1).expect("Expected a LocalDiff");
+            let diff2 = file1.diffs.get(1).expect("Expected a LocalDiff");
             assert_eq!(diff2.from_file_hunk_header.start_line, Some(9));
             assert_eq!(diff2.from_file_hunk_header.end_line, 11);
             assert_eq!(diff2.to_file_hunk_header.start_line, Some(7));
@@ -101,6 +109,31 @@ test comment
                     line_value("Okay okay, I'm sorry.", LineValueIndicator::Inserted),
                     line_value("These jokes were very bad", LineValueIndicator::Inserted),
                     line_value("Hopefully this example diff works", LineValueIndicator::Inserted),
+                ]
+            );
+
+            let file2 = parsed.diffs.get(1).expect("Expected a FileDiff");
+            assert_eq!(file2.from_header.file_path, "other file");
+            assert_eq!(
+                file2.from_header.modification_time.to_string(),
+                "2026-06-19 04:02:26.103103072 +0200"
+            );
+            assert_eq!(file2.to_header.file_path, "other/file");
+            assert_eq!(file2.to_header.modification_time.to_string(), "2026-06-19 08:29:42.921015162 +0200");
+            assert_eq!(file2.diffs.len(), 1);
+
+            let diff1 = file2.diffs.first().expect("Expected a LocalDiff");
+            assert_eq!(diff1.from_file_hunk_header.start_line, Some(1));
+            assert_eq!(diff1.from_file_hunk_header.end_line, 2);
+            assert_eq!(diff1.to_file_hunk_header.start_line, Some(1));
+            assert_eq!(diff1.to_file_hunk_header.end_line, 3);
+            assert_eq!(diff1.from_file_lines, vec![]);
+            assert_eq!(
+                diff1.to_file_lines,
+                vec![
+                    line_value("This is some other file", LineValueIndicator::Unchanged),
+                    line_value("With two lines", LineValueIndicator::Unchanged),
+                    line_value("And even a third line!", LineValueIndicator::Inserted),
                 ]
             );
         },

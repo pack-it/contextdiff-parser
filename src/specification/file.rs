@@ -60,3 +60,35 @@ pub enum LineValueIndicator {
     /// '-' indicator, line was deleted.
     Deleted,
 }
+
+impl HunkHeader {
+    /// Calculates the expected length of the hunk.
+    pub fn expected_hunk_length(&self) -> u64 {
+        match self.start_line {
+            Some(start_line) => self.end_line - start_line + 1,
+            None => 1,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_expected_hunk_length() {
+        let hunk_header = HunkHeader {
+            start_line: Some(10),
+            end_line: 15,
+        };
+
+        assert_eq!(hunk_header.expected_hunk_length(), 6);
+
+        let hunk_header = HunkHeader {
+            start_line: None,
+            end_line: 15,
+        };
+
+        assert_eq!(hunk_header.expected_hunk_length(), 1);
+    }
+}
