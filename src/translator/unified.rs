@@ -9,6 +9,7 @@ pub fn translate_to_unified_diff(context_diff: ContextDiffFile) -> String {
 
     // Add comments
     string.push_str(&context_diff.comment);
+    string.push('\n');
 
     // Add all file diffs
     for file in context_diff.diffs {
@@ -25,7 +26,7 @@ pub fn translate_to_unified_diff(context_diff: ContextDiffFile) -> String {
 }
 
 fn translate_file_header(header: FileDiffHeader, is_from: bool) -> String {
-    let prefix = if is_from { "--- " } else { "+++ " };
+    let prefix = if is_from { "---" } else { "+++" };
     let path = header.file_path;
     let timestamp = header.modification_time;
 
