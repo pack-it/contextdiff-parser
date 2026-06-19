@@ -92,3 +92,126 @@ fn format_deletion(value: &str) -> String {
 fn format_insertion(value: &str) -> String {
     format!("+{value}\n")
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use crate::specification::{FileDiff, HunkHeader, LineValue, Timestamp};
+
+    use super::*;
+
+    #[test]
+    fn test_translate_file_header() {
+        let header = FileDiffHeader {
+            file_path: "some test path".into(),
+            modification_time: Timestamp::from_str("2002-02-21 23:30:39.192052015 -0000").expect("Expected valid timestamp"),
+        };
+
+        assert_eq!(
+            translate_file_header(header.clone(), true),
+            "--- some test path\t2002-02-21 23:30:39.192052015 +0000\n"
+        );
+
+        assert_eq!(
+            translate_file_header(header, false),
+            "+++ some test path\t2002-02-21 23:30:39.192052015 +0000\n"
+        );
+    }
+
+    #[test]
+    fn test_format_context() {
+        assert_eq!(format_context("this is a test line"), " this is a test line\n");
+        assert_eq!(format_context(" this is a test line"), "  this is a test line\n");
+        assert_eq!(format_context(""), " \n");
+    }
+
+    #[test]
+    fn test_format_deletion() {
+        assert_eq!(format_deletion("this is a test line"), "-this is a test line\n");
+        assert_eq!(format_deletion("-this is a test line"), "--this is a test line\n");
+        assert_eq!(format_deletion(""), "-\n");
+    }
+
+    #[test]
+    fn test_format_insertion() {
+        assert_eq!(format_insertion("this is a test line"), "+this is a test line\n");
+        assert_eq!(format_insertion("+this is a test line"), "++this is a test line\n");
+        assert_eq!(format_insertion(""), "+\n");
+    }
+
+    #[test]
+    fn test_translate_hunk() {
+        let hunk = Hunk {
+            from_file_header: HunkHeader {
+                start_line: Some(2),
+                end_line: 4,
+            },
+            from_file_lines: vec![
+                LineValue::new("test line 1", LineValueIndicator::Unchanged),
+                LineValue::new("deleted line 1", LineValueIndicator::Deleted),
+                LineValue::new("deleted line 2", LineValueIndicator::Deleted),
+            ],
+            to_file_header: HunkHeader {
+                start_line: None,
+                end_line: 2,
+            },
+            to_file_lines: vec![LineValue::new("test line 1", LineValueIndicator::Unchanged)],
+        };
+
+        assert_eq!(
+            translate_hunk(hunk),
+            "@@ -2,3 +2,1 @@\n test line 1\n-deleted line 1\n-deleted line 2\n"
+        );
+    }
+
+    #[test]
+    fn test_translate_full_file() {
+        let hunk = Hunk {
+            from_file_header: HunkHeader {
+                start_line: Some(2),
+                end_line: 4,
+            },
+            from_file_lines: vec![
+                LineValue::new("test line 1", LineValueIndicator::Unchanged),
+                LineValue::new("deleted line 1", LineValueIndicator::Deleted),
+                LineValue::new("deleted line 2", LineValueIndicator::Deleted),
+            ],
+            to_file_header: HunkHeader {
+                start_line: None,
+                end_line: 2,
+            },
+            to_file_lines: vec![LineValue::new("test line 1", LineValueIndicator::Unchanged)],
+        };
+
+        let file = ContextDiffFile {
+            comment: "\ntest comments\nwith\nthree lines".into(),
+            diffs: vec![FileDiff {
+                from_header: FileDiffHeader {
+                    file_path: "some test path".into(),
+                    modification_time: Timestamp::from_str("2002-02-21 23:30:39.192052015 -0000").expect("Expected valid timestamp"),
+                },
+                to_header: FileDiffHeader {
+                    file_path: "some other test path".into(),
+                    modification_time: Timestamp::from_str("2005-02-26 23:31:39.192255025 -0000").expect("Expected valid timestamp"),
+                },
+                hunks: vec![hunk],
+            }],
+        };
+
+        assert_eq!(
+            translate_to_unified_diff(file),
+            "
+test comments
+with
+three lines
+--- some test path\t2002-02-21 23:30:39.192052015 +0000
++++ some other test path\t2005-02-26 23:31:39.192255025 +0000
+@@ -2,3 +2,1 @@
+ test line 1
+-deleted line 1
+-deleted line 2
+"
+        );
+    }
+}

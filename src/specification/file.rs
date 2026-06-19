@@ -16,7 +16,7 @@ pub struct FileDiff {
 }
 
 /// Represents a header of a file diff.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FileDiffHeader {
     pub file_path: String,
     pub modification_time: Timestamp,
@@ -67,6 +67,16 @@ impl HunkHeader {
         match self.start_line {
             Some(start_line) => self.end_line - start_line + 1,
             None => 1,
+        }
+    }
+}
+
+impl LineValue {
+    /// Creates a new LineValue with the given value and indicator
+    pub fn new(line_value: impl Into<String>, indicator: LineValueIndicator) -> Self {
+        Self {
+            line_value: line_value.into(),
+            indicator,
         }
     }
 }

@@ -254,10 +254,7 @@ fn parse_line_value(line: &str, line_num: u64) -> Result<LineValue> {
     // Extract line value from line
     let line_value = chars.as_str();
 
-    Ok(LineValue {
-        line_value: line_value.into(),
-        indicator,
-    })
+    Ok(LineValue::new(line_value, indicator))
 }
 
 #[cfg(test)]

@@ -2,13 +2,6 @@ use crate::specification::{LineValue, LineValueIndicator};
 
 use super::parse_from_str;
 
-fn line_value(value: &str, indicator: LineValueIndicator) -> LineValue {
-    LineValue {
-        line_value: value.into(),
-        indicator,
-    }
-}
-
 #[test]
 fn test_simple_file() {
     let file = "Some 
@@ -74,23 +67,23 @@ test comment
             assert_eq!(
                 hunk1.from_file_lines,
                 vec![
-                    line_value("Please delete me", LineValueIndicator::Deleted),
-                    line_value("delete me too", LineValueIndicator::Deleted),
-                    line_value("Why do the lines above want to be deleted?", LineValueIndicator::Unchanged),
-                    line_value("I don't know", LineValueIndicator::Changed),
-                    line_value("Okay nevermind, here is a funny joke:", LineValueIndicator::Unchanged),
-                    line_value("Why do scientists never trust atoms?", LineValueIndicator::Unchanged),
-                    line_value("  They make up everything!", LineValueIndicator::Unchanged),
+                    LineValue::new("Please delete me", LineValueIndicator::Deleted),
+                    LineValue::new("delete me too", LineValueIndicator::Deleted),
+                    LineValue::new("Why do the lines above want to be deleted?", LineValueIndicator::Unchanged),
+                    LineValue::new("I don't know", LineValueIndicator::Changed),
+                    LineValue::new("Okay nevermind, here is a funny joke:", LineValueIndicator::Unchanged),
+                    LineValue::new("Why do scientists never trust atoms?", LineValueIndicator::Unchanged),
+                    LineValue::new("  They make up everything!", LineValueIndicator::Unchanged),
                 ]
             );
             assert_eq!(
                 hunk1.to_file_lines,
                 vec![
-                    line_value("Why do the lines above want to be deleted?", LineValueIndicator::Unchanged),
-                    line_value("Which lines?", LineValueIndicator::Changed),
-                    line_value("Okay nevermind, here is a funny joke:", LineValueIndicator::Unchanged),
-                    line_value("Why do scientists never trust atoms?", LineValueIndicator::Unchanged),
-                    line_value("  They make up everything!", LineValueIndicator::Unchanged),
+                    LineValue::new("Why do the lines above want to be deleted?", LineValueIndicator::Unchanged),
+                    LineValue::new("Which lines?", LineValueIndicator::Changed),
+                    LineValue::new("Okay nevermind, here is a funny joke:", LineValueIndicator::Unchanged),
+                    LineValue::new("Why do scientists never trust atoms?", LineValueIndicator::Unchanged),
+                    LineValue::new("  They make up everything!", LineValueIndicator::Unchanged),
                 ]
             );
 
@@ -103,12 +96,12 @@ test comment
             assert_eq!(
                 hunk2.to_file_lines,
                 vec![
-                    line_value("I can tell more funny dad jokes!", LineValueIndicator::Unchanged),
-                    line_value("Why does the function have a bad day?", LineValueIndicator::Unchanged),
-                    line_value("  It had 5 arguments", LineValueIndicator::Unchanged),
-                    line_value("Okay okay, I'm sorry.", LineValueIndicator::Inserted),
-                    line_value("These jokes were very bad", LineValueIndicator::Inserted),
-                    line_value("Hopefully this example diff works", LineValueIndicator::Inserted),
+                    LineValue::new("I can tell more funny dad jokes!", LineValueIndicator::Unchanged),
+                    LineValue::new("Why does the function have a bad day?", LineValueIndicator::Unchanged),
+                    LineValue::new("  It had 5 arguments", LineValueIndicator::Unchanged),
+                    LineValue::new("Okay okay, I'm sorry.", LineValueIndicator::Inserted),
+                    LineValue::new("These jokes were very bad", LineValueIndicator::Inserted),
+                    LineValue::new("Hopefully this example diff works", LineValueIndicator::Inserted),
                 ]
             );
 
@@ -131,9 +124,9 @@ test comment
             assert_eq!(
                 hunk1.to_file_lines,
                 vec![
-                    line_value("This is some other file", LineValueIndicator::Unchanged),
-                    line_value("With two lines", LineValueIndicator::Unchanged),
-                    line_value("And even a third line!", LineValueIndicator::Inserted),
+                    LineValue::new("This is some other file", LineValueIndicator::Unchanged),
+                    LineValue::new("With two lines", LineValueIndicator::Unchanged),
+                    LineValue::new("And even a third line!", LineValueIndicator::Inserted),
                 ]
             );
         },
