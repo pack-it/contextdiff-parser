@@ -1,4 +1,4 @@
-use crate::specification::{LineValue, LineValueIndicator, LocalDiff};
+use crate::specification::{Hunk, LineValue, LineValueIndicator};
 
 /// Represents a segment of a hunk, consisting of either context lines or change lines.
 #[derive(Debug)]
@@ -11,14 +11,15 @@ pub enum HunkSegment {
 }
 
 /// Splits a hunk into hunk segments.
-pub fn split_hunk(hunk: LocalDiff) -> Vec<HunkSegment> {
+pub fn split_hunk(hunk: Hunk) -> Vec<HunkSegment> {
     match hunk.from_file_lines.is_empty() {
         true => split_only_to_hunk(hunk),
         false => split_to_and_from_hunk(hunk),
     }
 }
 
-fn split_only_to_hunk(hunk: LocalDiff) -> Vec<HunkSegment> {
+/// Splits the hunk into segments when the hunk contains only to lines.
+fn split_only_to_hunk(hunk: Hunk) -> Vec<HunkSegment> {
     let mut blocks = Vec::new();
 
     let mut sync = false;
@@ -66,7 +67,8 @@ fn split_only_to_hunk(hunk: LocalDiff) -> Vec<HunkSegment> {
     blocks
 }
 
-fn split_to_and_from_hunk(hunk: LocalDiff) -> Vec<HunkSegment> {
+/// Splits the hunk into segments when the hunk contains both from and to lines.
+fn split_to_and_from_hunk(hunk: Hunk) -> Vec<HunkSegment> {
     let mut blocks = Vec::new();
 
     let mut sync = false;

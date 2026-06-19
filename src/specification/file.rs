@@ -12,7 +12,7 @@ pub struct ContextDiffFile {
 pub struct FileDiff {
     pub from_header: FileDiffHeader,
     pub to_header: FileDiffHeader,
-    pub diffs: Vec<LocalDiff>,
+    pub hunks: Vec<Hunk>,
 }
 
 /// Represents a header of a file diff.
@@ -22,12 +22,12 @@ pub struct FileDiffHeader {
     pub modification_time: Timestamp,
 }
 
-/// Represents all changes to one local block in a file.
+/// Represents a hunk, containing all changes to one local block in a file.
 #[derive(Debug)]
-pub struct LocalDiff {
-    pub from_file_hunk_header: HunkHeader,
+pub struct Hunk {
+    pub from_file_header: HunkHeader,
     pub from_file_lines: Vec<LineValue>,
-    pub to_file_hunk_header: HunkHeader,
+    pub to_file_header: HunkHeader,
     pub to_file_lines: Vec<LineValue>,
 }
 

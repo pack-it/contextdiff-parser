@@ -1,6 +1,6 @@
 use crate::{
     parser::segmenter::{self, HunkSegment},
-    specification::{ContextDiffFile, FileDiffHeader, LineValueIndicator, LocalDiff},
+    specification::{ContextDiffFile, FileDiffHeader, Hunk, LineValueIndicator},
 };
 
 /// Translates a context diff to a unified diff.
@@ -17,14 +17,15 @@ pub fn translate_to_unified_diff(context_diff: ContextDiffFile) -> String {
         string.push_str(&translate_file_header(file.to_header, false));
 
         // Add all hunks
-        for diff in file.diffs {
-            string.push_str(&translate_hunk(diff));
+        for hunk in file.hunks {
+            string.push_str(&translate_hunk(hunk));
         }
     }
 
     string
 }
 
+/// Translates a file diff header to unified diff format.
 fn translate_file_header(header: FileDiffHeader, is_from: bool) -> String {
     let prefix = if is_from { "---" } else { "+++" };
     let path = header.file_path;
@@ -33,14 +34,15 @@ fn translate_file_header(header: FileDiffHeader, is_from: bool) -> String {
     format!("{prefix} {path}\t{timestamp}\n")
 }
 
-fn translate_hunk(hunk: LocalDiff) -> String {
+/// Translates a hunk to unified diff format.
+fn translate_hunk(hunk: Hunk) -> String {
     let mut translated_hunk = String::new();
 
-    let old_start = hunk.from_file_hunk_header.start_line.unwrap_or(hunk.from_file_hunk_header.end_line);
-    let new_start = hunk.to_file_hunk_header.start_line.unwrap_or(hunk.to_file_hunk_header.end_line);
+    let old_start = hunk.from_file_header.start_line.unwrap_or(hunk.from_file_header.end_line);
+    let new_start = hunk.to_file_header.start_line.unwrap_or(hunk.to_file_header.end_line);
 
-    let old_length = hunk.from_file_hunk_header.expected_hunk_length();
-    let new_length = hunk.to_file_hunk_header.expected_hunk_length();
+    let old_length = hunk.from_file_header.expected_hunk_length();
+    let new_length = hunk.to_file_header.expected_hunk_length();
 
     translated_hunk.push_str(&format!("@@ -{old_start},{old_length} +{new_start},{new_length} @@\n"));
 
@@ -76,14 +78,17 @@ fn translate_hunk(hunk: LocalDiff) -> String {
     translated_hunk
 }
 
+/// Formats a context line in unified diff format.
 fn format_context(value: &str) -> String {
     format!(" {value}\n")
 }
 
+/// Formats a deletion line in unified diff format.
 fn format_deletion(value: &str) -> String {
     format!("-{value}\n")
 }
 
+/// Formats an insertion line in unified diff format.
 fn format_insertion(value: &str) -> String {
     format!("+{value}\n")
 }

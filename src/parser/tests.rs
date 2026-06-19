@@ -64,15 +64,15 @@ test comment
             );
             assert_eq!(file1.to_header.file_path, "file2");
             assert_eq!(file1.to_header.modification_time.to_string(), "2026-06-18 23:36:10.102603136 +0200");
-            assert_eq!(file1.diffs.len(), 2);
+            assert_eq!(file1.hunks.len(), 2);
 
-            let diff1 = file1.diffs.first().expect("Expected a LocalDiff");
-            assert_eq!(diff1.from_file_hunk_header.start_line, Some(1));
-            assert_eq!(diff1.from_file_hunk_header.end_line, 7);
-            assert_eq!(diff1.to_file_hunk_header.start_line, Some(1));
-            assert_eq!(diff1.to_file_hunk_header.end_line, 5);
+            let hunk1 = file1.hunks.first().expect("Expected a LocalDiff");
+            assert_eq!(hunk1.from_file_header.start_line, Some(1));
+            assert_eq!(hunk1.from_file_header.end_line, 7);
+            assert_eq!(hunk1.to_file_header.start_line, Some(1));
+            assert_eq!(hunk1.to_file_header.end_line, 5);
             assert_eq!(
-                diff1.from_file_lines,
+                hunk1.from_file_lines,
                 vec![
                     line_value("Please delete me", LineValueIndicator::Deleted),
                     line_value("delete me too", LineValueIndicator::Deleted),
@@ -84,7 +84,7 @@ test comment
                 ]
             );
             assert_eq!(
-                diff1.to_file_lines,
+                hunk1.to_file_lines,
                 vec![
                     line_value("Why do the lines above want to be deleted?", LineValueIndicator::Unchanged),
                     line_value("Which lines?", LineValueIndicator::Changed),
@@ -94,14 +94,14 @@ test comment
                 ]
             );
 
-            let diff2 = file1.diffs.get(1).expect("Expected a LocalDiff");
-            assert_eq!(diff2.from_file_hunk_header.start_line, Some(9));
-            assert_eq!(diff2.from_file_hunk_header.end_line, 11);
-            assert_eq!(diff2.to_file_hunk_header.start_line, Some(7));
-            assert_eq!(diff2.to_file_hunk_header.end_line, 12);
-            assert_eq!(diff2.from_file_lines, vec![]);
+            let hunk2 = file1.hunks.get(1).expect("Expected a LocalDiff");
+            assert_eq!(hunk2.from_file_header.start_line, Some(9));
+            assert_eq!(hunk2.from_file_header.end_line, 11);
+            assert_eq!(hunk2.to_file_header.start_line, Some(7));
+            assert_eq!(hunk2.to_file_header.end_line, 12);
+            assert_eq!(hunk2.from_file_lines, vec![]);
             assert_eq!(
-                diff2.to_file_lines,
+                hunk2.to_file_lines,
                 vec![
                     line_value("I can tell more funny dad jokes!", LineValueIndicator::Unchanged),
                     line_value("Why does the function have a bad day?", LineValueIndicator::Unchanged),
@@ -120,16 +120,16 @@ test comment
             );
             assert_eq!(file2.to_header.file_path, "other/file");
             assert_eq!(file2.to_header.modification_time.to_string(), "2026-06-19 08:29:42.921015162 +0200");
-            assert_eq!(file2.diffs.len(), 1);
+            assert_eq!(file2.hunks.len(), 1);
 
-            let diff1 = file2.diffs.first().expect("Expected a LocalDiff");
-            assert_eq!(diff1.from_file_hunk_header.start_line, Some(1));
-            assert_eq!(diff1.from_file_hunk_header.end_line, 2);
-            assert_eq!(diff1.to_file_hunk_header.start_line, Some(1));
-            assert_eq!(diff1.to_file_hunk_header.end_line, 3);
-            assert_eq!(diff1.from_file_lines, vec![]);
+            let hunk1 = file2.hunks.first().expect("Expected a LocalDiff");
+            assert_eq!(hunk1.from_file_header.start_line, Some(1));
+            assert_eq!(hunk1.from_file_header.end_line, 2);
+            assert_eq!(hunk1.to_file_header.start_line, Some(1));
+            assert_eq!(hunk1.to_file_header.end_line, 3);
+            assert_eq!(hunk1.from_file_lines, vec![]);
             assert_eq!(
-                diff1.to_file_lines,
+                hunk1.to_file_lines,
                 vec![
                     line_value("This is some other file", LineValueIndicator::Unchanged),
                     line_value("With two lines", LineValueIndicator::Unchanged),
