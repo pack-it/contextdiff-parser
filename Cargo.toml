@@ -1,6 +1,10 @@
 [package]
 name = "contextdiff-parser"
 description = "A simple Rust library to parse and translate context diff files."
+license = "MIT OR Apache-2.0"
+authors = ["The Packit Team"]
+repository = "https://github.com/pack-it/contextdiff-parser"
+categories = ["encoding", "parser-implementations"]
 version = "0.0.1"
 edition = "2024"
 rust-version = "1.85.0"
