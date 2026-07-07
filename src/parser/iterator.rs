@@ -32,7 +32,7 @@ impl<'a> LineIterator<'a> {
 
     /// Returns a reference to the next() value without advancing the iterator.
     pub fn peek(&mut self) -> Option<&'a str> {
-        self.iterator.peek().map(|x| *x)
+        self.iterator.peek().copied()
     }
 
     /// Returns the current line index of the iterator.

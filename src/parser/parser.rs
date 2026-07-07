@@ -16,6 +16,7 @@ const FROM_HUNK_HEADER_SUFFIX: &str = " ****";
 const TO_HUNK_HEADER_PREFIX: &str = "--- ";
 const TO_HUNK_HEADER_SUFFIX: &str = " ----";
 
+#[allow(clippy::tabs_in_doc_comments)]
 /// Parses a context diff file from a string.
 ///
 /// # Errors
