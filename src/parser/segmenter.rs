@@ -1,3 +1,5 @@
+//! Segmenter to split context diff hunks into segments, with each
+//! segment being either a pair of changes or context lines.
 use crate::specification::{Hunk, LineValue, LineValueIndicator};
 
 /// Represents a segment of a hunk, consisting of either context lines or change lines.

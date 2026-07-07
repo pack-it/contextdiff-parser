@@ -1,3 +1,7 @@
+//! Parser to parse context diffs.
+//! Includes a [`segmenter`] module to split context diff hunks into segments,
+//! with each segment being either a pair of changes or context lines.
+
 mod error;
 mod iterator;
 pub mod segmenter;

@@ -4,12 +4,39 @@ use crate::{
 };
 
 /// Translates a context diff to a unified diff.
+///
+/// # Example
+///
+/// ```
+/// use contextdiff_parser::{parser, translator};
+///
+/// let input = "Some comment
+/// *** file	2026-06-19 04:02:26.103103072 +0200
+/// --- file	2026-06-19 08:29:42.921015162 +0200
+/// ***************
+/// *** 1,2 ****
+/// --- 1,3 ----
+///   This is some file
+///   With two lines
+/// + And even a third line!
+/// ";
+///
+/// match parser::parse_from_str(input) {
+///     Ok(parsed) => {
+///         let unified_diff = translator::translate_to_unified_diff(parsed);
+///         println!("{unified_diff}");
+///     },
+///     Err(e) => println!("ERROR: {e}"),
+/// }
+/// ```
 pub fn translate_to_unified_diff(context_diff: ContextDiffFile) -> String {
     let mut string = String::new();
 
     // Add comments
-    string.push_str(&context_diff.comment);
-    string.push('\n');
+    if !context_diff.comment.is_empty() {
+        string.push_str(&context_diff.comment);
+        string.push('\n');
+    }
 
     // Add all file diffs
     for file in context_diff.diffs {

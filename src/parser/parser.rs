@@ -17,6 +17,34 @@ const TO_HUNK_HEADER_PREFIX: &str = "--- ";
 const TO_HUNK_HEADER_SUFFIX: &str = " ----";
 
 /// Parses a context diff file from a string.
+///
+/// # Errors
+///
+/// Returns an [`Err`] if the input contains a malformed context diff.
+///
+/// # Example
+///
+/// ```
+/// use contextdiff_parser::parser;
+///
+/// let input = "Some comment
+/// *** file	2026-06-19 04:02:26.103103072 +0200
+/// --- file	2026-06-19 08:29:42.921015162 +0200
+/// ***************
+/// *** 1,2 ****
+/// --- 1,3 ----
+///   This is some file
+///   With two lines
+/// + And even a third line!
+/// ";
+///
+/// match parser::parse_from_str(input) {
+///     Ok(parsed) => {
+///         println!("{parsed:#?}");
+///     },
+///     Err(e) => println!("ERROR: {e}"),
+/// }
+/// ```
 pub fn parse_from_str(input: &str) -> Result<ContextDiffFile> {
     let mut diffs = Vec::new();
     let mut comment = String::new();
@@ -95,7 +123,7 @@ fn parse_next_hunk(iterator: &mut LineIterator) -> Result<Hunk> {
     let mut to_file_lines = Vec::new();
     let mut only_insertions = true;
     while let Some(next_line) = iterator.peek()
-        && !(next_line.starts_with(FROM_FILE_PREFIX) || *next_line == HUNK_SEPARATOR)
+        && !(next_line.starts_with(FROM_FILE_PREFIX) || next_line == HUNK_SEPARATOR)
     {
         let line = iterator.next().expect("Expected a line here");
         let line_value = parse_line_value(line, iterator.index() as u64)?;
