@@ -3,7 +3,6 @@ use crate::{
     specification::{ContextDiffFile, FileDiffHeader, Hunk, LineValueIndicator},
 };
 
-#[allow(clippy::tabs_in_doc_comments)]
 /// Translates a context diff to a unified diff.
 ///
 /// # Example
