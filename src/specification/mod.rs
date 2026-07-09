@@ -1,4 +1,5 @@
 //! Specification of the context diff format.
+//!
 //! The specification of the parts in a context diff file is defined in [`file`],
 //! the specification of the timestamps used in context diffs is defined in [`timestamp`].
 

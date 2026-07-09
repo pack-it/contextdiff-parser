@@ -7,7 +7,7 @@ use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone};
 use thiserror::Error;
 
 /// Represents a timestamp in a context diff file.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Timestamp {
     value: DateTime<FixedOffset>,
 }

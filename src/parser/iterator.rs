@@ -22,7 +22,7 @@ impl<'a> Iterator for LineIterator<'a> {
 }
 
 impl<'a> LineIterator<'a> {
-    /// Creates a new LineIterator, iterating over the lines in the given string.
+    /// Creates a new `LineIterator`, iterating over the lines in the given string.
     pub fn from_lines(string: &'a str) -> Self {
         Self {
             iterator: string.lines().peekable(),
@@ -30,13 +30,13 @@ impl<'a> LineIterator<'a> {
         }
     }
 
-    /// Returns a reference to the next() value without advancing the iterator.
+    /// Returns a reference to the next value without advancing the iterator.
     pub fn peek(&mut self) -> Option<&'a str> {
         self.iterator.peek().copied()
     }
 
     /// Returns the current line index of the iterator.
-    pub fn index(&self) -> usize {
+    pub const fn index(&self) -> usize {
         self.current_index
     }
 }

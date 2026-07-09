@@ -159,8 +159,8 @@ fn parse_next_hunk(iterator: &mut LineIterator) -> Result<Hunk> {
 
     Ok(Hunk {
         from_file_header,
-        to_file_header,
         from_file_lines,
+        to_file_header,
         to_file_lines,
     })
 }

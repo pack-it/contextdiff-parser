@@ -1,3 +1,5 @@
+#![warn(clippy::doc_markdown, clippy::inconsistent_struct_constructor, clippy::derive_partial_eq_without_eq)]
+#![warn(clippy::cargo, clippy::perf, clippy::complexity)]
 #![allow(clippy::tabs_in_doc_comments)]
 //! A simple Rust library to parse and translate context diff files.
 //!

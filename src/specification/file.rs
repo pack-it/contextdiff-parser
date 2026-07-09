@@ -16,7 +16,7 @@ pub struct FileDiff {
 }
 
 /// Represents a header of a file diff.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FileDiffHeader {
     pub file_path: String,
     pub modification_time: Timestamp,
@@ -32,21 +32,21 @@ pub struct Hunk {
 }
 
 /// Represents a header of a hunk of a local diff.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct HunkHeader {
     pub start_line: Option<u64>,
     pub end_line: u64,
 }
 
 /// Represents the value of one line in a local diff.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LineValue {
     pub line_value: String,
     pub indicator: LineValueIndicator,
 }
 
 /// Represents all possible indicators of a line in a local diff.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LineValueIndicator {
     /// ' ' indicator, line was not changed.
     Unchanged,
@@ -63,7 +63,7 @@ pub enum LineValueIndicator {
 
 impl HunkHeader {
     /// Calculates the expected length of the hunk.
-    pub fn expected_hunk_length(&self) -> u64 {
+    pub const fn expected_hunk_length(&self) -> u64 {
         match self.start_line {
             Some(start_line) => self.end_line - start_line + 1,
             None => 1,
@@ -72,7 +72,7 @@ impl HunkHeader {
 }
 
 impl LineValue {
-    /// Creates a new LineValue with the given value and indicator
+    /// Creates a new `LineValue` with the given value and indicator
     pub fn new(line_value: impl Into<String>, indicator: LineValueIndicator) -> Self {
         Self {
             line_value: line_value.into(),

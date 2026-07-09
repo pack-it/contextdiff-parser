@@ -63,13 +63,13 @@ pub enum ParserErrorKind {
 pub type Result<T> = core::result::Result<T, ParserError>;
 
 impl ParserError {
-    /// Creates a new ParserError.
-    pub fn new(line: u64, column: u64, kind: ParserErrorKind) -> Self {
+    /// Creates a new `ParserError`.
+    pub const fn new(line: u64, column: u64, kind: ParserErrorKind) -> Self {
         Self { kind, line, column }
     }
 
-    /// Creates a new UnexpectedEOF ParserError.
-    pub fn unexpected_eof(line: u64) -> Self {
+    /// Creates a new `ParserError::UnexpectedEOF`.
+    pub const fn unexpected_eof(line: u64) -> Self {
         Self {
             kind: ParserErrorKind::UnexpectedEOF,
             line,

@@ -1,6 +1,6 @@
 use crate::{
     parser::segmenter::{self, HunkSegment},
-    specification::{ContextDiffFile, FileDiffHeader, Hunk, LineValueIndicator},
+    specification::{ContextDiffFile, FileDiffHeader, Hunk, HunkHeader, LineValueIndicator},
 };
 
 /// Translates a context diff to a unified diff.
@@ -65,13 +65,8 @@ fn translate_file_header(header: FileDiffHeader, is_from: bool) -> String {
 fn translate_hunk(hunk: Hunk) -> String {
     let mut translated_hunk = String::new();
 
-    let old_start = hunk.from_file_header.start_line.unwrap_or(hunk.from_file_header.end_line);
-    let new_start = hunk.to_file_header.start_line.unwrap_or(hunk.to_file_header.end_line);
-
-    let old_length = hunk.from_file_header.expected_hunk_length();
-    let new_length = hunk.to_file_header.expected_hunk_length();
-
-    translated_hunk.push_str(&format!("@@ -{old_start},{old_length} +{new_start},{new_length} @@\n"));
+    // Translate hunk header
+    translated_hunk.push_str(&format_hunk_header(&hunk.from_file_header, &hunk.to_file_header));
 
     // Translate hunk segments
     for segment in segmenter::split_hunk(hunk) {
@@ -87,7 +82,9 @@ fn translate_hunk(hunk: Hunk) -> String {
                         LineValueIndicator::Changed | LineValueIndicator::Deleted => {
                             translated_hunk.push_str(&format_deletion(&line.line_value));
                         },
-                        _ => unreachable!(),
+
+                        // Other indicators are not valid here, so we ignore them if they somehow turned up
+                        _ => continue,
                     }
                 }
                 for line in to {
@@ -95,7 +92,9 @@ fn translate_hunk(hunk: Hunk) -> String {
                         LineValueIndicator::Changed | LineValueIndicator::Inserted => {
                             translated_hunk.push_str(&format_insertion(&line.line_value));
                         },
-                        _ => unreachable!(),
+
+                        // Other indicators are not valid here, so we ignore them if they somehow turned up
+                        _ => continue,
                     }
                 }
             },
@@ -103,6 +102,17 @@ fn translate_hunk(hunk: Hunk) -> String {
     }
 
     translated_hunk
+}
+
+// Formats the from and to headers from context format in a single unified diff format hunk header.
+fn format_hunk_header(from_header: &HunkHeader, to_header: &HunkHeader) -> String {
+    let old_start = from_header.start_line.unwrap_or(from_header.end_line);
+    let new_start = to_header.start_line.unwrap_or(to_header.end_line);
+
+    let old_length = from_header.expected_hunk_length();
+    let new_length = to_header.expected_hunk_length();
+
+    format!("@@ -{old_start},{old_length} +{new_start},{new_length} @@\n")
 }
 
 /// Formats a context line in unified diff format.
@@ -165,6 +175,31 @@ mod tests {
         assert_eq!(format_insertion("this is a test line"), "+this is a test line\n");
         assert_eq!(format_insertion("+this is a test line"), "++this is a test line\n");
         assert_eq!(format_insertion(""), "+\n");
+    }
+
+    #[test]
+    fn test_format_hunk_header() {
+        let from_header = HunkHeader {
+            start_line: Some(2),
+            end_line: 4,
+        };
+        let to_header = HunkHeader {
+            start_line: Some(2),
+            end_line: 4,
+        };
+
+        assert_eq!(format_hunk_header(&from_header, &to_header), "@@ -2,3 +2,3 @@\n");
+
+        let from_header = HunkHeader {
+            start_line: None,
+            end_line: 4,
+        };
+        let to_header = HunkHeader {
+            start_line: Some(2),
+            end_line: 4,
+        };
+
+        assert_eq!(format_hunk_header(&from_header, &to_header), "@@ -4,1 +2,3 @@\n");
     }
 
     #[test]
