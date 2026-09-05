@@ -229,7 +229,7 @@ fn parse_hunk_header(line: &str, line_num: u64, is_from: bool) -> Result<HunkHea
         false => (None, value),
     };
 
-    let start_line_len = start_line.map_or(0, |x| x.len() + 1) as u64;
+    let start_line_len = start_line.map_or(0, |x| x.len()) as u64;
     let start_line = match start_line {
         Some(line) => {
             Some(line.parse().map_err(|e| ParserError::new(line_num, prefix.len() as u64, ParserErrorKind::InvalidHunkLineNumber(e)))?)
@@ -240,18 +240,26 @@ fn parse_hunk_header(line: &str, line_num: u64, is_from: bool) -> Result<HunkHea
     let end_line = end_line.parse().map_err(|e| {
         ParserError::new(
             line_num,
-            prefix.len() as u64 + start_line_len,
+            prefix.len() as u64 + start_line_len + 1,
             ParserErrorKind::InvalidHunkLineNumber(e),
         )
     })?;
 
-    // Check if start line is before end line
+    // Check if start line is before or equal to end line
     if let Some(start_line) = start_line {
         if start_line > end_line {
             return Err(ParserError::new(
                 line_num,
                 prefix.len() as u64,
                 ParserErrorKind::HunkStartLineAfterEndLine,
+            ));
+        }
+
+        if start_line == end_line {
+            return Err(ParserError::new(
+                line_num,
+                prefix.len() as u64 + start_line_len + 1,
+                ParserErrorKind::HunkStartLineSameAsEndLine,
             ));
         }
     }
@@ -479,6 +487,24 @@ mod tests {
                 kind: ParserErrorKind::HunkStartLineAfterEndLine,
                 line: 0,
                 column: 4,
+            })
+        ));
+
+        // Test hunks with same start and end line
+        assert!(matches!(
+            parse_hunk_header("*** 15,15 ****", 0, true),
+            Err(ParserError {
+                kind: ParserErrorKind::HunkStartLineSameAsEndLine,
+                line: 0,
+                column: 7,
+            })
+        ));
+        assert!(matches!(
+            parse_hunk_header("*** 0,0 ****", 0, true),
+            Err(ParserError {
+                kind: ParserErrorKind::HunkStartLineSameAsEndLine,
+                line: 0,
+                column: 6,
             })
         ));
     }

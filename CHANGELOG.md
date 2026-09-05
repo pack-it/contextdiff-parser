@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - Fix wrong expected hunk length for hunks of files that don't exist (new or removed files).
+- Fix invalid hunks where start and end line or equal being accepted.
 
 
 ## [v0.0.1](https://github.com/pack-it/contextdiff-parser/releases/tag/0.0.1) - 2026-07-10

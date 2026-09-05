@@ -44,6 +44,9 @@ pub enum ParserErrorKind {
     #[error("The start line number of the hunk is higher than the end line number")]
     HunkStartLineAfterEndLine,
 
+    #[error("The start line number of the hunk is the same as the end line number")]
+    HunkStartLineSameAsEndLine,
+
     #[error("Expected {expected} lines in the hunk, found {found} lines")]
     HunkHeaderAndLinesMismatch {
         expected: u64,
