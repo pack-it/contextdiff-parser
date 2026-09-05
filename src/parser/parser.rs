@@ -229,7 +229,7 @@ fn parse_hunk_header(line: &str, line_num: u64, is_from: bool) -> Result<HunkHea
         false => (None, value),
     };
 
-    let start_line_len = start_line.map_or(0, |x| x.len()) as u64;
+    let start_line_len = start_line.map_or(0, |x| x.len() + 1) as u64;
     let start_line = match start_line {
         Some(line) => {
             Some(line.parse().map_err(|e| ParserError::new(line_num, prefix.len() as u64, ParserErrorKind::InvalidHunkLineNumber(e)))?)
@@ -240,7 +240,7 @@ fn parse_hunk_header(line: &str, line_num: u64, is_from: bool) -> Result<HunkHea
     let end_line = end_line.parse().map_err(|e| {
         ParserError::new(
             line_num,
-            prefix.len() as u64 + start_line_len + 1,
+            prefix.len() as u64 + start_line_len,
             ParserErrorKind::InvalidHunkLineNumber(e),
         )
     })?;
@@ -258,7 +258,7 @@ fn parse_hunk_header(line: &str, line_num: u64, is_from: bool) -> Result<HunkHea
         if start_line == end_line {
             return Err(ParserError::new(
                 line_num,
-                prefix.len() as u64 + start_line_len + 1,
+                prefix.len() as u64 + start_line_len,
                 ParserErrorKind::HunkStartLineSameAsEndLine,
             ));
         }
@@ -451,6 +451,14 @@ mod tests {
                 kind: ParserErrorKind::InvalidHunkLineNumber(_),
                 line: 0,
                 column: 7,
+            })
+        ));
+        assert!(matches!(
+            parse_hunk_header("*** a ****", 0, true),
+            Err(ParserError {
+                kind: ParserErrorKind::InvalidHunkLineNumber(_),
+                line: 0,
+                column: 4,
             })
         ));
 
