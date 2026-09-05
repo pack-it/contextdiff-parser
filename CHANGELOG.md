@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased](https://github.com/pack-it/contextdiff-parser/compare/0.0.1...HEAD)
 
+### Added
+- Test cases for the full parsing and translation from context diffs to unified diffs.
+
 ### Fixed
 - Fix wrong expected hunk length for hunks of files that don't exist (new or removed files).
 
