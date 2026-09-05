@@ -251,3 +251,93 @@ fn test_hunk_missing_separator() {
         },
     }
 }
+
+#[test]
+fn test_new_file() {
+    let file = "*** /dev/null	2026-06-18 14:05:12.936105103 +0200
+--- file	2026-06-18 23:36:10.102603136 +0200
+***************
+*** 0 ****
+--- 1,3 ----
++ This is a new file
++ With two lines
++ And even a third line!";
+
+    match parse_from_str(file) {
+        Ok(parsed) => {
+            assert_eq!(parsed.comment, "");
+            assert_eq!(parsed.diffs.len(), 1);
+
+            let file = parsed.diffs.get(0).expect("Expected a FileDiff");
+            assert_eq!(file.from_header.file_path, "/dev/null");
+            assert_eq!(
+                file.from_header.modification_time.to_string(),
+                "2026-06-18 14:05:12.936105103 +0200"
+            );
+            assert_eq!(file.to_header.file_path, "file");
+            assert_eq!(file.to_header.modification_time.to_string(), "2026-06-18 23:36:10.102603136 +0200");
+            assert_eq!(file.hunks.len(), 1);
+
+            let hunk = file.hunks.first().expect("Expected a LocalDiff");
+            assert_eq!(hunk.from_file_header.start_line, None);
+            assert_eq!(hunk.from_file_header.end_line, 0);
+            assert_eq!(hunk.to_file_header.start_line, Some(1));
+            assert_eq!(hunk.to_file_header.end_line, 3);
+            assert_eq!(hunk.from_file_lines, vec![]);
+            assert_eq!(
+                hunk.to_file_lines,
+                vec![
+                    LineValue::new("This is a new file", LineValueIndicator::Inserted),
+                    LineValue::new("With two lines", LineValueIndicator::Inserted),
+                    LineValue::new("And even a third line!", LineValueIndicator::Inserted),
+                ]
+            );
+        },
+        Err(e) => panic!("Expected Ok(ContextDiffFile {{ ... }}), got Err({e:?})"),
+    }
+}
+
+#[test]
+fn test_delete_file() {
+    let file = "*** file	2026-06-18 14:05:12.936105103 +0200
+--- /dev/null	2026-06-18 23:36:10.102603136 +0200
+***************
+*** 1,3 ****
+- This file will be deleted
+- And the parser will parse the
+- diff of the deletion correctly
+--- 0 ----";
+
+    match parse_from_str(file) {
+        Ok(parsed) => {
+            assert_eq!(parsed.comment, "");
+            assert_eq!(parsed.diffs.len(), 1);
+
+            let file = parsed.diffs.get(0).expect("Expected a FileDiff");
+            assert_eq!(file.from_header.file_path, "file");
+            assert_eq!(
+                file.from_header.modification_time.to_string(),
+                "2026-06-18 14:05:12.936105103 +0200"
+            );
+            assert_eq!(file.to_header.file_path, "/dev/null");
+            assert_eq!(file.to_header.modification_time.to_string(), "2026-06-18 23:36:10.102603136 +0200");
+            assert_eq!(file.hunks.len(), 1);
+
+            let hunk = file.hunks.first().expect("Expected a LocalDiff");
+            assert_eq!(hunk.from_file_header.start_line, Some(1));
+            assert_eq!(hunk.from_file_header.end_line, 3);
+            assert_eq!(hunk.to_file_header.start_line, None);
+            assert_eq!(hunk.to_file_header.end_line, 0);
+            assert_eq!(
+                hunk.from_file_lines,
+                vec![
+                    LineValue::new("This file will be deleted", LineValueIndicator::Deleted),
+                    LineValue::new("And the parser will parse the", LineValueIndicator::Deleted),
+                    LineValue::new("diff of the deletion correctly", LineValueIndicator::Deleted),
+                ]
+            );
+            assert_eq!(hunk.to_file_lines, vec![]);
+        },
+        Err(e) => panic!("Expected Ok(ContextDiffFile {{ ... }}), got Err({e:?})"),
+    }
+}

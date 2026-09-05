@@ -414,6 +414,8 @@ mod tests {
         assert_parse_hunk_header("--- 10,15 ----", false, Some(10), 15);
         assert_parse_hunk_header("*** 10 ****", true, None, 10);
         assert_parse_hunk_header("--- 10 ----", false, None, 10);
+        assert_parse_hunk_header("*** 0 ****", true, None, 0);
+        assert_parse_hunk_header("--- 0 ----", false, None, 0);
 
         // Test invalid header prefix
         let value = parse_hunk_header("*** 10,15 ****", 0, false);

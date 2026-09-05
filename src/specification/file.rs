@@ -66,6 +66,7 @@ impl HunkHeader {
     pub const fn expected_hunk_length(&self) -> u64 {
         match self.start_line {
             Some(start_line) => self.end_line - start_line + 1,
+            None if self.end_line == 0 => 0, // Ensure that hunks that have no lines, give an expected length of 0
             None => 1,
         }
     }
@@ -100,5 +101,13 @@ mod tests {
         };
 
         assert_eq!(hunk_header.expected_hunk_length(), 1);
+
+        // Test empty hunk for non existing files (new file or removed file)
+        let hunk_header = HunkHeader {
+            start_line: None,
+            end_line: 0,
+        };
+
+        assert_eq!(hunk_header.expected_hunk_length(), 0);
     }
 }
