@@ -6,7 +6,7 @@ authors = ["The Packit Team"]
 repository = "https://github.com/pack-it/contextdiff-parser"
 keywords = ["parser", "contextdiff", "diff", "patch"]
 categories = ["encoding", "parser-implementations"]
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 rust-version = "1.88.0"
 
