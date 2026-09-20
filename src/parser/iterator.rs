@@ -35,6 +35,17 @@ impl<'a> LineIterator<'a> {
         self.iterator.peek().copied()
     }
 
+    /// Advances the iterator if the function returns true and returns the next value.
+    pub fn next_if(&mut self, f: impl FnOnce(&&'a str) -> bool) -> Option<&'a str> {
+        match self.iterator.next_if(f) {
+            Some(val) => {
+                self.current_index += 1;
+                Some(val)
+            },
+            None => None,
+        }
+    }
+
     /// Returns the current line index of the iterator.
     pub const fn index(&self) -> usize {
         self.current_index

@@ -56,7 +56,10 @@ pub fn parse_from_str(input: &str) -> Result<ContextDiffFile> {
             if !comment.is_empty() {
                 comment.push('\n');
             }
-            comment.push_str(iterator.next().expect("Expected a line here"));
+
+            // Use peeked line value, and advance iterator
+            comment.push_str(line);
+            iterator.next();
             continue;
         }
 
@@ -110,7 +113,8 @@ fn parse_next_hunk(iterator: &mut LineIterator) -> Result<Hunk> {
     let mut from_file_lines = Vec::new();
     let line = iterator.index() as u64;
     while !iterator.peek().ok_or(ParserError::unexpected_eof(line))?.starts_with(TO_HUNK_HEADER_PREFIX) {
-        let line = iterator.next().expect("Expected a line here");
+        // Advance iterator and get value, this should never error because of the peek
+        let line = iterator.next().ok_or(ParserError::unexpected_eof(line))?;
         from_file_lines.push(parse_line_value(line, iterator.index() as u64)?);
     }
 
@@ -122,10 +126,7 @@ fn parse_next_hunk(iterator: &mut LineIterator) -> Result<Hunk> {
     // Parse lines of to hunk until a new file or hunk separator is found
     let mut to_file_lines = Vec::new();
     let mut only_insertions = true;
-    while let Some(next_line) = iterator.peek()
-        && !(next_line.starts_with(FROM_FILE_PREFIX) || next_line == HUNK_SEPARATOR)
-    {
-        let line = iterator.next().expect("Expected a line here");
+    while let Some(line) = iterator.next_if(|line| !(line.starts_with(FROM_FILE_PREFIX) || *line == HUNK_SEPARATOR)) {
         let line_value = parse_line_value(line, iterator.index() as u64)?;
         if !matches!(line_value.indicator, LineValueIndicator::Unchanged | LineValueIndicator::Inserted) {
             only_insertions = false;
@@ -168,14 +169,13 @@ fn parse_next_hunk(iterator: &mut LineIterator) -> Result<Hunk> {
 /// Parses a file diff header from the given line.
 /// Checks the prefix based on the `is_from` variable.
 fn parse_file_diff_header(line: &str, line_num: u64, is_from: bool) -> Result<FileDiffHeader> {
-    // Check if file PREFIXs with the correct prefix
+    // Strip prefix if correct, return error otherwise
     let prefix = if is_from { FROM_FILE_PREFIX } else { TO_FILE_PREFIX };
-    if !line.starts_with(prefix) {
+    let Some(value) = line.strip_prefix(prefix) else {
         return Err(ParserError::new(line_num, 0, ParserErrorKind::ExpectedFileHeaderPrefix));
-    }
+    };
 
     // Split path and timestamp from header
-    let value = line.strip_prefix(prefix).expect("Expected a line prefix here");
     let tab_index = value.find('\t').ok_or(ParserError::new(line_num, 0, ParserErrorKind::ExpectedTabInFileHeaderPrefix))?;
     let (path, timestamp) = value.split_at(tab_index);
 
@@ -200,33 +200,23 @@ fn parse_file_diff_header(line: &str, line_num: u64, is_from: bool) -> Result<Fi
 /// Parses a hunk header from the given line.
 /// Checks the prefix and suffix based on the `is_from` variable.
 fn parse_hunk_header(line: &str, line_num: u64, is_from: bool) -> Result<HunkHeader> {
-    // Check if line PREFIXs with the expected characters
+    // Strip prefix if correct, return error otherwise
     let prefix = if is_from { FROM_HUNK_HEADER_PREFIX } else { TO_HUNK_HEADER_PREFIX };
-    if !line.starts_with(prefix) {
+    let Some(stripped_line) = line.strip_prefix(prefix) else {
         return Err(ParserError::new(line_num, 0, ParserErrorKind::ExpectedHunkPrefix));
-    }
+    };
 
-    // Check if line SUFFIXs with the expected characters
+    // Strip suffix if correct, return error otherwise
     let suffix = if is_from { FROM_HUNK_HEADER_SUFFIX } else { TO_HUNK_HEADER_SUFFIX };
-    if !line.ends_with(suffix) {
+    let Some(value) = stripped_line.strip_suffix(suffix) else {
         let column = (line.len() - suffix.len()) as u64;
         return Err(ParserError::new(line_num, column, ParserErrorKind::ExpectedHunkSuffix));
-    }
-
-    // Extract line number value from hunk header
-    let value = line
-        .strip_prefix(prefix)
-        .expect("Expected a line prefix here")
-        .strip_suffix(suffix)
-        .expect("Expected a line suffix here");
+    };
 
     // Extract line numbers from hunk
-    let (start_line, end_line) = match value.contains(',') {
-        true => {
-            let (start, end) = value.split_once(',').expect("Expected a comma at the line");
-            (Some(start), end)
-        },
-        false => (None, value),
+    let (start_line, end_line) = match value.split_once(',') {
+        Some((start, end)) => (Some(start), end),
+        None => (None, value),
     };
 
     let start_line_len = start_line.map_or(0, |x| x.len() + 1) as u64;
