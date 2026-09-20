@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changes
 - The parser now does not use `expect` anymore, eliminating unexpected panics.
+- Update all dependencies to their latest versions.
 
 ### Fixed
 - Fix wrong expected hunk length for hunks of files that don't exist (new or removed files).
