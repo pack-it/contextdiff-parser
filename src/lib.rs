@@ -1,6 +1,6 @@
 #![warn(clippy::doc_markdown, clippy::inconsistent_struct_constructor, clippy::derive_partial_eq_without_eq)]
 #![warn(clippy::cargo, clippy::perf, clippy::complexity)]
-#![allow(clippy::tabs_in_doc_comments)]
+#![allow(clippy::tabs_in_doc_comments, clippy::needless_doctest_main)]
 //! A simple Rust library to parse and translate context diff files.
 //!
 //! contextdiff-parser provides a simple parser for context diff files, a segmenter to split context
