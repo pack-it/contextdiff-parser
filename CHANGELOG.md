@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - Test cases for the full parsing and translation from context diffs to unified diffs.
+- Test cases for the hunk segmenter.
 
 ### Changes
 - The parser now does not use `expect` anymore, eliminating unexpected panics.
